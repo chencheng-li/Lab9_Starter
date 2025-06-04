@@ -7,6 +7,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Lab 9</title>
 
+  <!-- TrackJS Error Monitoring -->
+  <script src="https://cdn.trackjs.com/agent/v3/latest/t.js"></script>
+  <script>
+    window.TrackJS && TrackJS.install({ 
+      token: "2eb651daa14046f29a626e1d1a9e5fde"
+      // for more configuration options, see https://docs.trackjs.com
+    });
+  </script>
+
   <style>
     button {
       margin: 3px;
@@ -88,6 +97,42 @@
   </main>
 
   <script>
+    // Set up global error handler to catch uncaught runtime errors
+    window.onerror = function(message, source, lineno, colno, error) {
+      console.groupCollapsed("%cGlobal Error Caught by window.onerror", "color: red; font-weight: bold;");
+      console.log("Message:", message);
+      console.log("Source:", source);
+      console.log("Line Number:", lineno);
+      console.log("Column Number:", colno);
+      if (error) {
+        console.error("Error Object:", error);
+        console.log("Error Name:", error.name);
+        console.log("Error Stack:", error.stack);
+      } else {
+        console.warn("Error object was not available in window.onerror.");
+      }
+      console.groupEnd();
+
+      // Log a simple, custom message as requested by the lab
+      console.log("A global error was detected and logged by window.onerror handler.");
+
+      // Return false to allow browser's default error handling too
+      return false;
+    };
+
+    // Define custom error class for calculation-specific errors
+    class CalculationError extends Error {
+      constructor(message) {
+        super(message);
+        this.name = "CalculationError";
+        
+        // Maintaining proper stack trace (important for some environments)
+        if (Error.captureStackTrace) {
+          Error.captureStackTrace(this, CalculationError);
+        }
+      }
+    }
+
     let form = document.querySelector('form');
     form.addEventListener('submit', e => {
       e.preventDefault();
@@ -95,13 +140,330 @@
       let firstNum = document.querySelector('#first-num').value;
       let secondNum = document.querySelector('#second-num').value;
       let operator = document.querySelector('#operator').value;
-      output.innerHTML = eval(`${firstNum} ${operator} ${secondNum}`);
+
+      try {
+        // Attempt to perform the calculation
+        console.log(`Attempting to evaluate: ${firstNum} ${operator} ${secondNum}`);
+        const result = eval(`${firstNum} ${operator} ${secondNum}`);
+
+        // Check if the result is a valid number (not Infinity, -Infinity, or NaN)
+        if (!isFinite(result)) {
+          // If result is Infinity, -Infinity, or NaN, throw a custom CalculationError
+          // This makes it catchable by our catch block as a specific "calculation" error
+          throw new CalculationError("Calculation resulted in an invalid number (e.g., division by zero).");
+        }
+
+        output.innerHTML = result;
+        console.log("Calculation successful:", result);
+
+      } catch (error) {
+        // Handle different types of errors with more specific error handling
+        console.error("Error during calculation:", error); // Log the actual error for debugging
+        console.error("Error Name:", error.name);
+        console.error("Error Message:", error.message);
+        
+        // Use instanceof to provide more specific error messages
+        if (error instanceof CalculationError) {
+          console.warn("A specific CalculationError occurred:", error.message);
+          output.innerHTML = `Calculation error: ${error.message}`;
+        } else if (error instanceof ReferenceError) {
+          console.warn("A ReferenceError occurred (likely bad input for eval):", error.message);
+          output.innerHTML = "Input error: Invalid variable name used.";
+        } else if (error instanceof SyntaxError) {
+          console.warn("A SyntaxError occurred (likely malformed expression for eval):", error.message);
+          output.innerHTML = "Syntax error: Expression cannot be calculated.";
+        } else {
+          // Generic error message for other types of errors
+          output.innerHTML = "An unknown error occurred during calculation.";
+        } 
+
+      } finally {
+        // This block will execute regardless of success or failure
+        console.log("Calculation attempt finished.");
+      }
+
     });
 
     let errorBtns = Array.from(document.querySelectorAll('#error-btns > button'));
 
     // Start your code here
     // You may move this JS to another file if you wish
+
+    const consoleLogBtn = errorBtns.find(btn => btn.textContent ==='Console Log');
+
+    if (consoleLogBtn) {
+      consoleLogBtn.addEventListener('click', () => {
+        console.log("Console Log get clicked!");
+        let myVariable = "hi, console!";
+        console.log("value of myVariable is", myVariable);
+        console.log("number:", 100);
+      })
+    }
+
+    const consoleErrorBtn = errorBtns.find(btn => btn.textContent === 'Console Error');
+
+    if (consoleErrorBtn) {
+      consoleErrorBtn.addEventListener('click', () => {
+        console.error("Console Error get clicked!");
+        console.error("Error: input invaild!");
+        
+        const muCustomError = new Error("this is a custom error message.");
+        console.error("Error Object:", muCustomError);
+      })
+    }
+
+    const consoleCountBtn = errorBtns.find(btn => btn.textContent === 'Console Count');
+
+    if (consoleCountBtn) {
+      consoleCountBtn.addEventListener('click', () => {
+        console.count("Console Count Button");
+        console.log("The count button was pressed."); 
+      });
+    }
+    
+    const consoleWarnBtn = errorBtns.find(btn => btn.textContent === 'Console Warn');
+
+    if (consoleWarnBtn) {
+      consoleWarnBtn.addEventListener('click', () => {
+        // When the button is clicked, issue a warning
+        console.warn("Console Warn button was clicked! This is a warning demonstration.");
+        console.warn("Warning: Input value might be out of expected range.");
+
+        // Example: Simulating a configuration warning
+        const userSettings = { theme: "legacy" };
+        if (userSettings.theme === "legacy") {
+          console.warn("Configuration Warning: The 'legacy' theme is outdated. Consider switching to 'modern' for better performance and features.");
+        }
+      });
+    }
+
+    const consoleAssertBtn = errorBtns.find(btn => btn.textContent === 'Console Assert');
+
+    if (consoleAssertBtn) {
+      consoleAssertBtn.addEventListener('click', () => {
+        console.log("Console Assert button clicked. Demonstrating assertions...");
+
+        // Example 1: An assertion that should pass (condition is true)
+        const num1 = 10;
+        console.assert(num1 > 0, "Assertion PASSED (This message won't be shown if true): num1 should be positive.");
+        // Since num1 > 0 is true, nothing will be logged by this assert.
+        // We add a regular log to confirm we reached here for clarity in the demo.
+        console.log("After first assertion (should pass).");
+
+
+        // Example 2: An assertion that should fail (condition is false)
+        const str = "";
+        console.assert(str.length > 0, "Assertion FAILED: The string 'str' should not be empty.");
+        // This will log an error because str.length > 0 is false.
+
+        // Example 3: Another failing assertion with more details
+        const expectedValue = 5;
+        const actualValue = document.querySelectorAll('button').length; // Example: count buttons on page
+        console.assert(actualValue === expectedValue, "Assertion FAILED: Expected to find", expectedValue, "buttons, but found", actualValue, "instead.");
+      });
+    }
+
+    const consoleClearBtn = errorBtns.find(btn => btn.textContent === 'Console Clear');
+
+    if (consoleClearBtn) {
+      consoleClearBtn.addEventListener('click', () => {
+        // When the button is clicked, clear the console
+        console.clear();
+      });
+    }
+
+
+    const consoleDirBtn = errorBtns.find(btn => btn.textContent === 'Console Dir');
+
+    if (consoleDirBtn) {
+      consoleDirBtn.addEventListener('click', () => {
+        console.log("Console Dir button clicked. Demonstrating console.dir()...");
+
+        // Example 1: Displaying a simple JavaScript object
+        const person = {
+          name: "John Doe",
+          age: 30,
+          isStudent: false,
+          address: {
+            street: "123 Main St",
+            city: "Anytown"
+          }
+        };
+        console.log("Logging 'person' object with console.log:", person); // For comparison
+        console.dir(person, {depth: null}); // The {depth: null} option tries to expand all levels in Node.js, browser behavior might vary for complex objects
+
+        // Example 2: Displaying a DOM element as an object
+        // Let's get the form element from the page
+        const calculatorForm = document.querySelector('form');
+        if (calculatorForm) {
+          console.log("Logging calculator form with console.log:", calculatorForm);
+          console.dir(calculatorForm); // This will show all its properties as a JS object
+        } else {
+          console.warn("Calculator form element not found for console.dir demo.");
+        }
+      });
+    }
+
+    // Add this after the code for the "Console Dir" button
+
+    const consoleDirxmlBtn = errorBtns.find(btn => btn.textContent === 'Console dirxml');
+
+    if (consoleDirxmlBtn) {
+      consoleDirxmlBtn.addEventListener('click', () => {
+        console.log("Console dirxml button clicked. Demonstrating console.dirxml()...");
+
+        // Example 1: Displaying the structure of the error buttons section
+        const errorButtonsSection = document.getElementById('error-btns');
+        if (errorButtonsSection) {
+          console.log("Logging '#error-btns' section with console.log:", errorButtonsSection); // For comparison
+          console.dir("Logging '#error-btns' section with console.dir:", errorButtonsSection);   // For comparison
+          console.dirxml(errorButtonsSection); // This should show its HTML-like tree structure
+        } else {
+          console.warn("Element with ID 'error-btns' not found for console.dirxml demo.");
+        }
+
+        // Example 2: Displaying the structure of the first button, if available
+        const firstButton = document.querySelector('#error-btns button');
+        if (firstButton) {
+            console.dirxml(firstButton);
+        }
+      });
+    }
+
+    const consoleGroupStartBtn = errorBtns.find(btn => btn.textContent === 'Console Group Start');
+    const consoleGroupEndBtn = errorBtns.find(btn => btn.textContent === 'Console Group End');
+
+    let groupCounter = 0; // To create unique group labels if button is clicked multiple times
+
+    if (consoleGroupStartBtn) {
+      consoleGroupStartBtn.addEventListener('click', () => {
+        groupCounter++;
+        const groupLabel = `My Test Group ${groupCounter}`;
+        console.groupCollapsed(groupLabel); 
+
+        console.log("This is the first message in the group.");
+        console.warn("This is a warning inside the group.");
+        console.error("This is an error inside the group.");
+
+        console.group("Nested Group");
+        console.log("Message in nested group.");
+
+        console.groupEnd(); // Ends "Nested Group"
+
+        console.log("Group started. Click other console buttons to add more logs to this group, then click 'Console Group End'.");
+        // Note: If we don't call groupEnd() here, the group remains active.
+        // The "Console Group End" button will then close this group.
+      });
+    }
+
+    if (consoleGroupEndBtn) {
+      consoleGroupEndBtn.addEventListener('click', () => {
+        try {
+          console.groupEnd();
+          console.log("A console group was ended.");
+        } catch (e) {
+          console.warn("Tried to end a group, but no group was active or an error occurred.", e);
+        }
+      });
+    }
+
+    const consoleTableBtn = errorBtns.find(btn => btn.textContent === 'Console Table');
+
+    if (consoleTableBtn) {
+      consoleTableBtn.addEventListener('click', () => {
+        console.log("Console Table button clicked. Demonstrating console.table()...");
+
+        const courses = [
+          { name: "Software Engineering", instructor: "Dr. Smith", credits: 4, department: "CSE" },
+          { name: "Programming Languages", instructor: "Prof. Jones", credits: 3, department: "CSE" },
+          { name: "Advanced Software Topics", instructor: "Dr. Doe", credits: 3, department: "CSE" },
+          { name: "Database Systems", instructor: "Prof. Brown", credits: 4, department: "DSCI" }
+        ];
+
+        console.table(courses);
+
+        console.log("Displaying only 'name' and 'instructor' columns:");
+        console.table(courses, ["name", "instructor"]);
+
+        const systemStatus = {
+            cpuUsage: "45%",
+            memoryUsage: "60%",
+            diskSpace: "250GB remaining",
+            lastChecked: new Date().toLocaleTimeString()
+        };
+        console.log("Displaying systemStatus object as a table:");
+        console.table(systemStatus);
+      });
+    }
+
+
+    const startTimerBtn = errorBtns.find(btn => btn.textContent === 'Start Timer');
+    const endTimerBtn = errorBtns.find(btn => btn.textContent === 'End Timer');
+    const TIMER_LABEL = "MyOperationTimer"; 
+
+    if (startTimerBtn) {
+      startTimerBtn.addEventListener('click', () => {
+        // Start a timer with a specific label
+        console.time(TIMER_LABEL);
+        console.log(`Timer "${TIMER_LABEL}" started.`);
+      });
+    }
+
+    if (endTimerBtn) {
+      endTimerBtn.addEventListener('click', () => {
+        console.timeEnd(TIMER_LABEL);
+        console.log(`Attempted to end timer "${TIMER_LABEL}". Check console for duration.`);
+      });
+    }
+
+    const consoleTraceBtn = errorBtns.find(btn => btn.textContent === 'Console Trace');
+
+    if (consoleTraceBtn) {
+      consoleTraceBtn.addEventListener('click', () => {
+        console.log("Console Trace button clicked. Demonstrating console.trace()...");
+
+        function firstFunction() {
+          console.log("Inside firstFunction.");
+          secondFunction();
+        }
+
+        function secondFunction() {
+          console.log("Inside secondFunction.");
+          thirdFunction();
+        }
+
+        function thirdFunction() {
+          console.log("Inside thirdFunction, about to trace.");
+          console.trace("Here is the call stack from thirdFunction:");
+        }
+
+        firstFunction();
+      });
+    }
+
+    const triggerGlobalErrorBtn = errorBtns.find(btn => btn.textContent === 'Trigger a Global Error');
+
+    if (triggerGlobalErrorBtn) {
+      triggerGlobalErrorBtn.addEventListener('click', () => {
+        console.warn("Triggering a global error intentionally...");
+
+        // Create a function that uses an undefined variable to cause a ReferenceError
+        function causeError() {
+          let testVar = "hello";
+          // Intentionally try to use an undefined variable 'boom'
+          // This will cause a ReferenceError: boom is not defined
+          let result = testVar + boom; // boom is not defined
+          console.log(result); // This line won't be reached
+        }
+        
+        causeError();
+
+        // This line below will not be reached if an error is thrown above
+        console.log("If you see this, the global error was not triggered properly (or was caught).");
+      });
+    }
+
+
   </script>
 </body>
 
